@@ -1084,6 +1084,26 @@ func TestRefusals(t *testing.T) {
 			want: "is not a decimal number",
 		},
 		{
+			name: "negative number without a leading digit",
+			sql: `
+				SELECT DISTINCT trace_id
+				FROM spans
+				WHERE between(start_time, now() - '1h', now())
+					AND attributes['ratio'] = -.5`,
+			at:   "-.5",
+			want: `"-.5" is not a decimal number`,
+		},
+		{
+			name: "negated hexadecimal number in parentheses",
+			sql: `
+				SELECT DISTINCT trace_id
+				FROM spans
+				WHERE between(start_time, now() - '1h', now())
+					AND attributes['attempts'] = -(0x10)`,
+			at:   "-(0x10)",
+			want: `"-0x10" is not a decimal number`,
+		},
+		{
 			name: "a pattern that is an expression starting with a literal",
 			sql: `
 				SELECT DISTINCT trace_id

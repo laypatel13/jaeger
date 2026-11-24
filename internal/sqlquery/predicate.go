@@ -170,10 +170,7 @@ func (c *compiler) constantText(node parser.Expr) (string, error) {
 	case *parser.StringLiteral:
 		return unquote(n.Literal), nil
 	case *parser.NumberLiteral:
-		if !decimalNumber.MatchString(n.Literal) {
-			return "", c.pos.at(node, fmt.Sprintf("%q is not a decimal number", n.Literal), "Write the number in decimal digits; storage reads the constant as text")
-		}
-		return strings.TrimPrefix(n.Literal, "+"), nil
+		return c.decimal(node, n.Literal)
 	case *parser.Ident:
 		if isBoolean(n.Name) {
 			return strings.ToLower(n.Name), nil
@@ -182,7 +179,7 @@ func (c *compiler) constantText(node parser.Expr) (string, error) {
 		// The parser reads a leading minus as an operator in some positions and as part of the
 		// number in others; both spell the one negative number.
 		if num, ok := unparenthesized(n.Expr).(*parser.NumberLiteral); ok && n.Kind == parser.TokenKindMinus && !strings.ContainsAny(num.Literal[:1], "+-") {
-			return "-" + num.Literal, nil
+			return c.decimal(node, "-"+num.Literal)
 		}
 	case *parser.IntervalExpr:
 		d, err := c.interval(n)
@@ -200,6 +197,15 @@ func (c *compiler) constantText(node parser.Expr) (string, error) {
 	default:
 	}
 	return "", c.pos.at(node, "expected a literal here", "Literals are quoted strings, numbers, true or false, a duration such as '2s', and now() with a duration added or subtracted")
+}
+
+// decimal returns a number as storage receives it, or a refusal when it is not spelled in
+// decimal digits.
+func (c *compiler) decimal(node parser.Expr, literal string) (string, error) {
+	if !decimalNumber.MatchString(literal) {
+		return "", c.pos.at(node, fmt.Sprintf("%q is not a decimal number", literal), "Write the number in decimal digits; storage reads the constant as text")
+	}
+	return strings.TrimPrefix(literal, "+"), nil
 }
 
 // instant evaluates now() and now() ± INTERVAL, the only arithmetic the dialect has. ok is false
